@@ -6,11 +6,8 @@ import pygame
 class Tile(pygame.sprite.Sprite):
     def __init__(self, app, tile_type, pos_x, pos_y):
         super().__init__(app.tiles_group, app.all_sprites)
-        if tile_type == 'wall':
-            self.image = app.load_image('box.png')
-        elif tile_type == 'empty':
+        if tile_type == 'empty':
             self.image = app.load_image('grass.png')
-            app.load_image('box.png')
 
         self.rect = self.image.get_rect().move(
             app.tile_width * pos_x, app.tile_height * pos_y)
@@ -26,6 +23,8 @@ class Player(pygame.sprite.Sprite):
     def update(self, x, y):
         self.rect.x += x
         self.rect.y += y
+        if x == 0 and y == 0:
+            self.kill()
 
 
 class Hero(pygame.sprite.Sprite):
@@ -50,14 +49,14 @@ class App:
         self.clock = pygame.time.Clock()
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption('Mario')
-        self.fps = 50
+        self.fps = 150
         pygame.key.set_repeat(200, 70)
         self.all_sprites = pygame.sprite.Group()
         self.tiles_group = pygame.sprite.Group()
         self.player_group = pygame.sprite.Group()
         self.hero = None
         self.tile_width = self.tile_height = 50
-
+        self.player, self.level_x, self.level_y = self.generate_level(self.load_level('level_1.txt'))
 
     def terminate(self):
         pygame.quit()
@@ -89,23 +88,18 @@ class App:
                 if event.type == pygame.KEYDOWN:
                     key = pygame.key.get_pressed()
                     if key[pygame.K_DOWN]:
-                        self.player.update(0, 50)
-                if event.type == pygame.KEYDOWN:
-                    key = pygame.key.get_pressed()
+                        self.player.update(0, 15)
                     if key[pygame.K_LEFT]:
-                        self.player.update(-50, 0)
-                if event.type == pygame.KEYDOWN:
-                    key = pygame.key.get_pressed()
+                        self.player.update(-15, 0)
                     if key[pygame.K_RIGHT]:
-                        self.player.update(50, 0)
-                if event.type == pygame.KEYDOWN:
-                    key = pygame.key.get_pressed()
+                        self.player.update(15, 0)
                     if key[pygame.K_UP]:
-                        self.player.update(0, -50)
+                        self.player.update(0, -15)
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_1:
                     self.game_over += 1
                 if self.game_over == 5:
-                    self.start_screen()
+                    self.player.update(0, 0)
+                    self.end_screen()
                     run = False
             # update
 
@@ -118,10 +112,10 @@ class App:
             self.clock.tick(self.fps)
 
     def start_screen(self):
-            intro_text = ["ЗАСТАВКА", "",
-                          "Правила игры",
-                          "Если в правилах несколько строк,",
-                          "приходится выводить их построчно"]
+            intro_text = ["ЗАСТАВКА", "", "", "",
+                          "ИСПОЛЬЗУЙТЕ СТРЕЛОЧКИ ДЛЯ ДВИЖЕНИЯ", "",
+                          "ЛУЧШИЙ СЧЁТ", "", "", "", "", "", "", "",
+                          "НАЖМИТЕ ЧТОБЫ ИГРАТЬ"]
 
             fon = pygame.transform.scale(self.load_image('fon.jpg'), (self.width, self.height))
             self.screen.blit(fon, (0, 0))
@@ -146,10 +140,68 @@ class App:
                 pygame.display.flip()
                 self.clock.tick(self.fps)
 
+    def end_screen(self):
+            intro_text = ["ЗАСТАВКА", "", "", "",
+                          "ВАШ СЧЁТ", "",
+                          "ЛУЧШИЙ СЧЁТ", "", "", "", "", "", "",
+                          "НАЖМИТЕ Esc ЧТОБЫ ВЫЙТИ",
+                          "НАЖМИТЕ ЧТОБЫ НАЧАТЬ СНАЧАЛА"]
 
+            fon = pygame.transform.scale(self.load_image('fon.jpg'), (self.width, self.height))
+            self.screen.blit(fon, (0, 0))
+            font = pygame.font.Font(None, 30)
+            text_coord = 50
+            for line in intro_text:
+                string_rendered = font.render(line, 1, pygame.Color('white'))
+                intro_rect = string_rendered.get_rect()
+                text_coord += 10
+                intro_rect.top = text_coord
+                intro_rect.x = 10
+                text_coord += intro_rect.height
+                self.screen.blit(string_rendered, intro_rect)
+            self.player, self.level_x, self.level_y = self.generate_level(self.load_level('level_1.txt'))
+
+            while True:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        self.terminate()
+                    elif event.type == pygame.KEYDOWN and not event.key == pygame.K_ESCAPE or \
+                            event.type == pygame.MOUSEBUTTONDOWN:
+                        self.run_game()  # начинаем игру
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                        self.start_screen()
+                pygame.display.flip()
+                self.clock.tick(self.fps)
+
+    def load_level(self, filename):
+        filename = "data/" + filename
+        # читаем уровень, убирая символы перевода строки
+        with open(filename, 'r') as mapFile:
+            level_map = [line.strip() for line in mapFile]
+
+        # и подсчитываем максимальную длину
+        max_width = max(map(len, level_map))
+
+        # дополняем каждую строку пустыми клетками ('.')
+        return list(map(lambda x: x.ljust(max_width, '.'), level_map))
+
+    def generate_level(self, level):
+        new_player, x, y = None, None, None
+        for y in range(len(level)):
+            for x in range(len(level[y])):
+                if level[y][x] == '.':
+                    Tile(self, 'empty', x, y)
+                elif level[y][x] == '#':
+                    Tile(self, 'empty', x, y)
+                elif level[y][x] == '@':
+                    Tile(self, 'empty', x, y)
+                    new_player = Player(self, x, y)
+        # вернем игрока, а также размер поля в клетках
+        return new_player, x, y
 
 
 if __name__ == '__main__':
     app = App()
     app.start_screen()
     app.run_game()
+
