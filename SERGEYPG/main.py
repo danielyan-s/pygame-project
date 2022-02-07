@@ -60,8 +60,8 @@ class Player(pygame.sprite.Sprite):
         self.rect.y += y
         if x == 0 and y == 0:
             self.kill()
-        if self.rect.right > app.width - 17:
-            self.rect.right = app.width - 17
+        if self.rect.right > app.width + 17:
+            self.rect.right = app.width + 17
         if self.rect.left < -17:
             self.rect.left = -17
         if self.rect.top < 3:
